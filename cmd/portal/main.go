@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
+	"charm.land/fang/v2"
 	"github.com/ardevd/portal-ng/cmd/portal/commands"
 	"github.com/ardevd/portal-ng/cmd/portal/config"
 	"github.com/spf13/cobra"
@@ -47,7 +49,7 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	if err := rootCmd.Execute(); err != nil {
+	if err := fang.Execute(context.Background(), rootCmd); err != nil {
 		os.Exit(1)
 	}
 }
