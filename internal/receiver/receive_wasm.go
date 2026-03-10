@@ -6,9 +6,9 @@ import (
 	"context"
 	"io"
 
-	"github.com/SpatiumPortae/portal/internal/conn"
-	"github.com/SpatiumPortae/portal/protocol/rendezvous"
-	"github.com/SpatiumPortae/portal/protocol/transfer"
+	"github.com/ardevd/portal-ng/internal/conn"
+	"github.com/ardevd/portal-ng/protocol/rendezvous"
+	"github.com/ardevd/portal-ng/protocol/transfer"
 )
 
 // doReceive performs the transfer protocol on the receiving end.

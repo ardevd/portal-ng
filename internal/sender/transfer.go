@@ -9,8 +9,8 @@ import (
 	"log"
 	"net"
 
-	"github.com/SpatiumPortae/portal/internal/conn"
-	"github.com/SpatiumPortae/portal/protocol/transfer"
+	"github.com/ardevd/portal-ng/internal/conn"
+	"github.com/ardevd/portal-ng/protocol/transfer"
 )
 
 // doTransfer performs the file transfer, either directly or using the Rendezvous server as a relay.

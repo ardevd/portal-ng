@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SpatiumPortae/portal/internal/conn"
-	"github.com/SpatiumPortae/portal/internal/logger"
-	"github.com/SpatiumPortae/portal/protocol/rendezvous"
+	"github.com/ardevd/portal-ng/internal/conn"
+	"github.com/ardevd/portal-ng/internal/logger"
+	"github.com/ardevd/portal-ng/protocol/rendezvous"
 	"go.uber.org/zap"
 	"nhooyr.io/websocket"
 )

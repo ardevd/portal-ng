@@ -1,4 +1,4 @@
-module github.com/SpatiumPortae/portal
+module github.com/ardevd/portal-ng
 
 go 1.25.0
 

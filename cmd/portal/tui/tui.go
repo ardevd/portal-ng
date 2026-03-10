@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SpatiumPortae/portal/internal/conn"
-	"github.com/SpatiumPortae/portal/internal/semver"
-	"github.com/SpatiumPortae/portal/protocol/transfer"
+	"github.com/ardevd/portal-ng/internal/conn"
+	"github.com/ardevd/portal-ng/internal/semver"
+	"github.com/ardevd/portal-ng/protocol/transfer"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	lipgloss "charm.land/lipgloss/v2"

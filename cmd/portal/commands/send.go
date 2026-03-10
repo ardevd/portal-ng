@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/SpatiumPortae/portal/cmd/portal/config"
-	sender_ui "github.com/SpatiumPortae/portal/cmd/portal/tui/sender"
-	"github.com/SpatiumPortae/portal/internal/file"
-	"github.com/SpatiumPortae/portal/internal/portal"
-	"github.com/SpatiumPortae/portal/internal/semver"
+	"github.com/ardevd/portal-ng/cmd/portal/config"
+	sender_ui "github.com/ardevd/portal-ng/cmd/portal/tui/sender"
+	"github.com/ardevd/portal-ng/internal/file"
+	"github.com/ardevd/portal-ng/internal/portal"
+	"github.com/ardevd/portal-ng/internal/semver"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )

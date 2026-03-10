@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SpatiumPortae/portal/internal/logger"
-	"github.com/SpatiumPortae/portal/internal/semver"
-	"github.com/SpatiumPortae/portal/templates"
+	"github.com/ardevd/portal-ng/internal/logger"
+	"github.com/ardevd/portal-ng/internal/semver"
+	"github.com/ardevd/portal-ng/templates"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 )

@@ -14,14 +14,14 @@ tasks:
   build:
     desc: Build portal binary
     cmds:
-      - go build -ldflags="{{.LINKER_FLAGS}}" -o portal ./cmd/portal/
+      - go build -ldflags="{{.LINKER_FLAGS}}" -o portal-ng ./cmd/portal/
 
   build-production:
     desc: Build portal binary for production
     env:
       CGO: "0"
     cmds:
-      - go build -ldflags="{{.LINKER_FLAGS}}" -o portal ./cmd/portal/
+      - go build -ldflags="{{.LINKER_FLAGS}}" -o portal-ng ./cmd/portal/
 
   image:
     desc: Build docker image

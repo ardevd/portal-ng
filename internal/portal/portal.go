@@ -4,8 +4,8 @@ import (
 	"context"
 	"io"
 
-	"github.com/SpatiumPortae/portal/internal/receiver"
-	"github.com/SpatiumPortae/portal/internal/sender"
+	"github.com/ardevd/portal-ng/internal/receiver"
+	"github.com/ardevd/portal-ng/internal/sender"
 )
 
 // Send executes the portal send sequence. The initial connection with the relay
