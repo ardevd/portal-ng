@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/SpatiumPortae/portal/cmd/portal/tui"
@@ -17,13 +18,11 @@ import (
 	"github.com/SpatiumPortae/portal/internal/receiver"
 	"github.com/SpatiumPortae/portal/internal/semver"
 	"github.com/SpatiumPortae/portal/protocol/transfer"
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/erikgeiser/promptkit"
-	"github.com/erikgeiser/promptkit/confirmation"
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
+	lipgloss "charm.land/lipgloss/v2"
 	"github.com/spf13/viper"
 )
 
@@ -92,9 +91,10 @@ type model struct {
 	width            int
 	spinner          spinner.Model
 	transferProgress transferprogress.Model
-	fileTable        filetable.Model
-	overwritePrompt  confirmation.Model
-	help             help.Model
+	fileTable               filetable.Model
+	overwritePromptActive   bool
+	overwritePromptSelected bool
+	help                    help.Model
 	keys             tui.KeyMap
 }
 
@@ -106,7 +106,6 @@ func New(addr string, password string, opts ...Option) *tea.Program {
 		password:         password,
 		rendezvousAddr:   addr,
 		fileTable:        filetable.New(),
-		overwritePrompt:  *confirmation.NewModel(confirmation.New("", confirmation.Undecided)),
 		help:             help.New(),
 		keys:             tui.Keys,
 		ctx:              context.Background(),
@@ -180,7 +179,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, m.spinner.Tick)
 		}
 		transferProgressModel, transferProgressCmd := m.transferProgress.Update(msg)
-		m.transferProgress = transferProgressModel.(transferprogress.Model)
+		m.transferProgress = transferProgressModel
 		cmds = append(cmds, transferProgressCmd)
 		return m, tea.Batch(cmds...)
 
@@ -194,7 +193,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		)
 
 		m.fileTable.SetMaxHeight(math.MaxInt)
-		m.fileTable = m.fileTable.Finalize().(filetable.Model)
+		m.fileTable = m.fileTable.Finalize()
 
 		var err error
 		m.unpacker, err = file.NewUnpacker(viper.GetBool("prompt_overwrite_files"), msg.temp)
@@ -216,7 +215,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.keys.OverwritePromptYes.SetEnabled(true)
 		m.keys.OverwritePromptNo.SetEnabled(true)
 		m.keys.OverwritePromptConfirm.SetEnabled(true)
-		return m, tea.Batch(m.spinner.Tick, m.newOverwritePrompt(msg.commiter.FileName()))
+		m.overwritePromptActive = true
+		m.overwritePromptSelected = true
+		return m, tea.Batch(m.spinner.Tick)
 
 	case unpackDoneMsg:
 		m.unpacker.Close()
@@ -227,7 +228,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tui.ErrorMsg:
 		return m, tui.ErrorCmd(errors.New(msg.Error()))
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		var cmds []tea.Cmd
 		switch {
 		case key.Matches(msg, m.keys.Quit):
@@ -235,23 +236,29 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		fileTableModel, fileTableCmd := m.fileTable.Update(msg)
-		m.fileTable = fileTableModel.(filetable.Model)
+		m.fileTable = fileTableModel
 		cmds = append(cmds, fileTableCmd)
 
-		_, promptCmd := m.overwritePrompt.Update(msg)
 		if m.state == showOverwritePrompt {
 			switch msg.String() {
 			case "left", "right":
-				cmds = append(cmds, promptCmd)
+				m.overwritePromptSelected = !m.overwritePromptSelected
 			}
 			switch {
 			case key.Matches(msg, m.keys.OverwritePromptYes, m.keys.OverwritePromptNo, m.keys.OverwritePromptConfirm):
+				if key.Matches(msg, m.keys.OverwritePromptYes) || msg.String() == "y" || msg.String() == "Y" {
+					m.overwritePromptSelected = true
+				} else if key.Matches(msg, m.keys.OverwritePromptNo) || msg.String() == "n" || msg.String() == "N" {
+					m.overwritePromptSelected = false
+				}
+				
 				m.state = showDecompressing
 				m.keys.OverwritePromptYes.SetEnabled(false)
 				m.keys.OverwritePromptNo.SetEnabled(false)
 				m.keys.OverwritePromptConfirm.SetEnabled(false)
-				shouldOverwrite, _ := m.overwritePrompt.Value()
-				if shouldOverwrite {
+				m.overwritePromptActive = false
+				
+				if m.overwritePromptSelected {
 					cmds = append(cmds, m.commitCmd())
 				} else {
 					cmds = append(cmds, m.unpackCmd())
@@ -263,32 +270,29 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		transferProgressModel, transferProgressCmd := m.transferProgress.Update(msg)
-		m.transferProgress = transferProgressModel.(transferprogress.Model)
+		m.transferProgress = transferProgressModel
 
 		fileTableModel, fileTableCmd := m.fileTable.Update(msg)
-		m.fileTable = fileTableModel.(filetable.Model)
+		m.fileTable = fileTableModel
 
-		m.overwritePrompt.MaxWidth = msg.Width - 2*tui.MARGIN - 4
-		_, promptCmd := m.overwritePrompt.Update(msg)
-
-		return m, tea.Batch(transferProgressCmd, fileTableCmd, promptCmd)
+		return m, tea.Batch(transferProgressCmd, fileTableCmd)
 
 	default:
 		var spinnerCmd tea.Cmd
 		m.spinner, spinnerCmd = m.spinner.Update(msg)
-		_, promptCmd := m.overwritePrompt.Update(msg)
-		return m, tea.Batch(spinnerCmd, promptCmd)
+		return m, spinnerCmd
 	}
 }
 
-func (m model) View() string {
+func (m model) View() tea.View {
+	var view string
 
 	switch m.state {
 
 	case showEstablishing:
-		return tui.PadText + tui.LogSeparator(m.width) +
+		view = tui.PadText + tui.LogSeparator(m.width) +
 			tui.PadText + tui.InfoStyle(fmt.Sprintf("%s Establishing connection with sender", m.spinner.View())) + "\n\n" +
-			tui.PadText + m.help.View(m.keys) + "\n\n"
+			tui.PadText + m.help.View(m.keys)
 
 	case showReceivingProgress:
 		var transferType string
@@ -300,26 +304,38 @@ func (m model) View() string {
 
 		payloadSize := tui.BoldText(tui.ByteCountSI(m.payloadSize))
 		receivingText := fmt.Sprintf("%s Receiving objects (%s) using %s transfer", m.spinner.View(), payloadSize, transferType)
-		return tui.PadText + tui.LogSeparator(m.width) +
+		view = tui.PadText + tui.LogSeparator(m.width) +
 			tui.PadText + tui.InfoStyle(receivingText) + "\n\n" +
 			tui.PadText + m.transferProgress.View() + "\n\n" +
-			tui.PadText + m.help.View(m.keys) + "\n\n"
+			tui.PadText + m.help.View(m.keys)
 
 	case showOverwritePrompt:
 		waitingText := fmt.Sprintf("%s Waiting for file overwrite confirmation", m.spinner.View())
-		return tui.PadText + tui.LogSeparator(m.width) +
+
+		promptText := fmt.Sprintf("Overwrite file '%s'? ", m.commiter.FileName())
+		var yesStyle, noStyle lipgloss.Style
+		if m.overwritePromptSelected {
+			yesStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(tui.ELEMENT_COLOR)).Underline(true)
+			noStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(tui.PRIMARY_COLOR))
+		} else {
+			yesStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(tui.PRIMARY_COLOR))
+			noStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(tui.ELEMENT_COLOR)).Underline(true)
+		}
+		promptView := promptText + yesStyle.Render("Yes") + " / " + noStyle.Render("No")
+
+		view = tui.PadText + tui.LogSeparator(m.width) +
 			tui.PadText + tui.InfoStyle(waitingText) + "\n\n" +
 			tui.PadText + m.transferProgress.View() + "\n\n" +
-			tui.PadText + m.overwritePrompt.View() + "\n\n" +
-			tui.PadText + m.help.View(m.keys) + "\n\n"
+			tui.PadText + promptView + "\n\n" +
+			tui.PadText + m.help.View(m.keys)
 
 	case showDecompressing:
 		payloadSize := tui.BoldText(tui.ByteCountSI(m.payloadSize))
 		decompressingText := fmt.Sprintf("%s Decompressing payload (%s compressed) and writing to disk", m.spinner.View(), payloadSize)
-		return tui.PadText + tui.LogSeparator(m.width) +
+		view = tui.PadText + tui.LogSeparator(m.width) +
 			tui.PadText + tui.InfoStyle(decompressingText) + "\n\n" +
 			tui.PadText + m.transferProgress.View() + "\n\n" +
-			tui.PadText + m.help.View(m.keys) + "\n\n"
+			tui.PadText + m.help.View(m.keys)
 
 	case showFinished:
 		oneOrMoreFiles := "object"
@@ -327,14 +343,16 @@ func (m model) View() string {
 			oneOrMoreFiles += "s"
 		}
 		finishedText := fmt.Sprintf("Received %d %s (%s decompressed)", len(m.receivedFiles), oneOrMoreFiles, tui.ByteCountSI(m.decompressedPayloadSize))
-		return tui.PadText + tui.LogSeparator(m.width) +
+		view = tui.PadText + tui.LogSeparator(m.width) +
 			tui.PadText + tui.InfoStyle(finishedText) + "\n\n" +
 			tui.PadText + m.transferProgress.View() + "\n\n" +
 			m.fileTable.View()
 
 	default:
-		return ""
+		view = ""
 	}
+
+	return tea.NewView(strings.TrimRight(view, "\n"))
 }
 
 // ------------------------------------------------------ Commands -----------------------------------------------------
@@ -435,18 +453,6 @@ func (m *model) commitCmd() tea.Cmd {
 }
 
 // ------------------------------------------------------ Helpers ------------------------------------------------------
-
-func (m *model) newOverwritePrompt(fileName string) tea.Cmd {
-	prompt := confirmation.New(fmt.Sprintf("Overwrite file '%s'?", fileName), confirmation.Yes)
-	m.overwritePrompt = *confirmation.NewModel(prompt)
-	m.overwritePrompt.MaxWidth = m.width
-	m.overwritePrompt.WrapMode = promptkit.HardWrap
-	m.overwritePrompt.Template = confirmation.TemplateYN
-	m.overwritePrompt.ResultTemplate = confirmation.ResultTemplateYN
-	m.overwritePrompt.KeyMap.Abort = []string{}
-	m.overwritePrompt.KeyMap.Toggle = []string{}
-	return m.overwritePrompt.Init()
-}
 
 func (m *model) resetSpinner() {
 	m.spinner = spinner.New()

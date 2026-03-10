@@ -11,9 +11,9 @@ import (
 	"github.com/SpatiumPortae/portal/internal/conn"
 	"github.com/SpatiumPortae/portal/internal/semver"
 	"github.com/SpatiumPortae/portal/protocol/transfer"
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
+	lipgloss "charm.land/lipgloss/v2"
 )
 
 // ------------------------------------------------- Shared UI Messages ------------------------------------------------
@@ -64,7 +64,7 @@ var ReceivingSpinner = spinner.Spinner{
 func LogSeparator(width int) string {
 	paddedWidth := math.Max(0, float64(width)-2*MARGIN)
 	return fmt.Sprintf("%s\n\n",
-		BaseStyle.Copy().
+		BaseStyle.
 			Foreground(lipgloss.Color(SECONDARY_COLOR)).
 			Render(strings.Repeat("─", int(math.Min(MAX_WIDTH, paddedWidth)))))
 }
