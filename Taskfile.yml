@@ -1,0 +1,41 @@
+version: '3'
+
+vars:
+  PORTAL_VERSION:
+    sh: git describe --tags --abbrev=0 2>/dev/null || echo "dev"
+  LINKER_FLAGS: '-s -X main.version={{.PORTAL_VERSION}}'
+
+tasks:
+  lint:
+    desc: Run golangci-lint
+    cmds:
+      - golangci-lint run --timeout 5m -E misspell ./...
+
+  build:
+    desc: Build portal binary
+    cmds:
+      - go build -ldflags="{{.LINKER_FLAGS}}" -o portal ./cmd/portal/
+
+  build-production:
+    desc: Build portal binary for production
+    env:
+      CGO: "0"
+    cmds:
+      - go build -ldflags="{{.LINKER_FLAGS}}" -o portal ./cmd/portal/
+
+  image:
+    desc: Build docker image
+    cmds:
+      - docker build --build-arg version={{.PORTAL_VERSION}} --tag rendezvous:latest .
+
+  serve:
+    desc: Run rendezvous server
+    deps: [image]
+    cmds:
+      - docker run -dp 8080:8080 rendezvous:latest
+
+  test:
+    desc: Run tests
+    cmds:
+      - go test -ldflags="{{.LINKER_FLAGS}}" -v -race -covermode=atomic -coverprofile=coverage.out -failfast -short ./...
+
