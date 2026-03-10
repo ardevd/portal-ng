@@ -52,6 +52,5 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Unit Test
-        if: github.event_name == 'push'
         run: task test
 
