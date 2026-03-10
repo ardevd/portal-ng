@@ -38,4 +38,3 @@ tasks:
     desc: Run tests
     cmds:
       - go test -ldflags="{{.LINKER_FLAGS}}" -v -race -covermode=atomic -coverprofile=coverage.out -failfast -short ./...
-
