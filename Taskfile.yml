@@ -23,14 +23,6 @@ tasks:
     cmds:
       - go build -ldflags="{{.LINKER_FLAGS}}" -o portal ./cmd/portal/
 
-  build-wasm:
-    desc: Build WebAssembly binary
-    env:
-      GOOS: js
-      GOARCH: wasm
-    cmds:
-      - go build -o portal.wasm ./cmd/wasm/main.go
-
   image:
     desc: Build docker image
     cmds:
@@ -47,8 +39,3 @@ tasks:
     cmds:
       - go test -ldflags="{{.LINKER_FLAGS}}" -v -race -covermode=atomic -coverprofile=coverage.out -failfast -short ./...
 
-  test-e2e:
-    desc: Run e2e tests
-    deps: [image]
-    cmds:
-      - go test -ldflags="{{.LINKER_FLAGS}}" -v -race -covermode=atomic -coverprofile=coverage.out -failfast ./...
