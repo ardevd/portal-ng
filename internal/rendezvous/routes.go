@@ -1,8 +1,8 @@
 package rendezvous
 
 import (
-	"github.com/SpatiumPortae/portal/internal/conn"
-	"github.com/SpatiumPortae/portal/internal/logger"
+	"github.com/ardevd/portal-ng/internal/conn"
+	"github.com/ardevd/portal-ng/internal/logger"
 )
 
 func (s *Server) routes() {

@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/SpatiumPortae/portal/internal/conn"
+	"github.com/ardevd/portal-ng/internal/conn"
 	"nhooyr.io/websocket"
 )
 

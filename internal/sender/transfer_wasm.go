@@ -7,8 +7,8 @@ import (
 	"io"
 	"net"
 
-	"github.com/SpatiumPortae/portal/internal/conn"
-	"github.com/SpatiumPortae/portal/protocol/transfer"
+	"github.com/ardevd/portal-ng/internal/conn"
+	"github.com/ardevd/portal-ng/protocol/transfer"
 )
 
 // doTransfer performs the file transfer directly, no relay. This function is only built for the

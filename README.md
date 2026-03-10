@@ -10,11 +10,11 @@ a command-line file transfer utility for sending files from any computer to anot
 <br>
 
 <p align="center">
-      <a href="https://github.com/SpatiumPortae/portal/releases"><img src="https://img.shields.io/github/v/release/spatiumportae/portal?color=%231777AB&label=version"></a>
+      <a href="https://github.com/ardevd/portal-ng/releases"><img src="https://img.shields.io/github/v/release/ardevd/portal-ng?color=%231777AB&label=version"></a>
       &nbsp;
-      <a href="https://github.com/SpatiumPortae/portal/actions"><img src="https://img.shields.io/github/actions/workflow/status/SpatiumPortae/portal/ci.yml?branch=master&color=%231777AB"></a>
+      <a href="https://github.com/ardevd/portal-ng/actions"><img src="https://img.shields.io/github/actions/workflow/status/ardevd/portal-ng/ci.yml?branch=master&color=%231777AB"></a>
       &nbsp;
-      <a href="https://github.com/SpatiumPortae/portal/blob/master/LICENSE"><img src="https://img.shields.io/github/license/spatiumportae/portal?color=%231777AB"></a>
+      <a href="https://github.com/ardevd/portal-ng/blob/master/LICENSE"><img src="https://img.shields.io/github/license/ardevd/portal-ng?color=%231777AB"></a>
 </p>
 
 ## Installation
@@ -48,7 +48,7 @@ sudo snap install portal
 ```
 -->
 
-On any platform, you can get the [latest release manually](https://github.com/SpatiumPortae/portal/releases/latest), or simply run
+On any platform, you can get the [latest release manually](https://github.com/ardevd/portal-ng/releases/latest), or simply run
 
 ```bash
 curl -sL portal.spatiumportae.com | bash

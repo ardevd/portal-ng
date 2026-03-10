@@ -4,7 +4,7 @@ Thanks for helping make Portal safe for everyone.
 
 ## Security
 
-SpatiumPortae takes the security of our software products and services seriously, including all of the open source code repositories managed through our organization, such as [Portal](https://github.com/SpatiumPortae/portal).
+SpatiumPortae takes the security of our software products and services seriously, including all of the open source code repositories managed through our organization, such as [Portal](https://github.com/ardevd/portal-ng).
 
 ## Reporting Security Issues
 
