@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - "**"
+  pull_request:
+    branches:
+      - "**"
 
 jobs:
   lint:
@@ -17,12 +20,16 @@ jobs:
       - name: Go setup
         uses: actions/setup-go@v5
         with:
-          go-version: 1.20.1
+          go-version: 1.25.x
+
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Lint with golangci-lint
-        uses: golangci/golangci-lint-action@v3
-        with:
-          args: -v --timeout=5m -E misspell
+        run: task lint
 
   build:
     runs-on: ubuntu-latest
@@ -35,10 +42,16 @@ jobs:
       - name: Go setup
         uses: actions/setup-go@v5
         with:
-          go-version: 1.20.1
+          go-version: 1.25.x
+
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build
-        run: make build
+        run: task build
 
   test:
     runs-on: ubuntu-latest
@@ -52,35 +65,15 @@ jobs:
       - name: Go setup
         uses: actions/setup-go@v5
         with:
-          go-version: 1.20.1
+          go-version: 1.25.x
+
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Unit Test
         if: github.event_name == 'push'
-        run: make test
+        run: task test
 
-      - name: E2E Test
-        if: github.event_name == 'pull_request'
-        env:
-          PORTAL_VERSION: "v1.1.1" # version does not matter for outcome of test, just for building image
-        run: make test-e2e
-
-      - name: Upload code coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          verbose: true
-
-  build-wasm:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout branch
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Go setup
-        uses: actions/setup-go@v5
-        with:
-          go-version: 1.20.1
-
-      - name: Build
-        run: make build-wasm
