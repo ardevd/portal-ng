@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/SpatiumPortae/portal/cmd/portal/tui"
@@ -17,11 +18,12 @@ import (
 	"github.com/SpatiumPortae/portal/internal/receiver"
 	"github.com/SpatiumPortae/portal/internal/semver"
 	"github.com/SpatiumPortae/portal/protocol/transfer"
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
+	tea1 "github.com/charmbracelet/bubbletea"
+	lipgloss "charm.land/lipgloss/v2"
 	"github.com/erikgeiser/promptkit"
 	"github.com/erikgeiser/promptkit/confirmation"
 	"github.com/spf13/viper"
@@ -180,7 +182,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, m.spinner.Tick)
 		}
 		transferProgressModel, transferProgressCmd := m.transferProgress.Update(msg)
-		m.transferProgress = transferProgressModel.(transferprogress.Model)
+		m.transferProgress = transferProgressModel
 		cmds = append(cmds, transferProgressCmd)
 		return m, tea.Batch(cmds...)
 
@@ -194,7 +196,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		)
 
 		m.fileTable.SetMaxHeight(math.MaxInt)
-		m.fileTable = m.fileTable.Finalize().(filetable.Model)
+		m.fileTable = m.fileTable.Finalize()
 
 		var err error
 		m.unpacker, err = file.NewUnpacker(viper.GetBool("prompt_overwrite_files"), msg.temp)
@@ -227,7 +229,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tui.ErrorMsg:
 		return m, tui.ErrorCmd(errors.New(msg.Error()))
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		var cmds []tea.Cmd
 		switch {
 		case key.Matches(msg, m.keys.Quit):
@@ -235,14 +237,30 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		fileTableModel, fileTableCmd := m.fileTable.Update(msg)
-		m.fileTable = fileTableModel.(filetable.Model)
+		m.fileTable = fileTableModel
 		cmds = append(cmds, fileTableCmd)
 
-		_, promptCmd := m.overwritePrompt.Update(msg)
+		var promptMsg tea.Msg = msg
+		if msg.String() == "left" {
+			promptMsg = tea1.KeyMsg{Type: tea1.KeyLeft}
+		} else if msg.String() == "right" {
+			promptMsg = tea1.KeyMsg{Type: tea1.KeyRight}
+		} else if msg.String() == "y" || msg.String() == "Y" {
+			promptMsg = tea1.KeyMsg{Type: tea1.KeyRunes, Runes: []rune("y")}
+		} else if msg.String() == "n" || msg.String() == "N" {
+			promptMsg = tea1.KeyMsg{Type: tea1.KeyRunes, Runes: []rune("n")}
+		}
+
+		_, promptCmd := m.overwritePrompt.Update(promptMsg)
+		var teaCmd tea.Cmd
+		if promptCmd != nil {
+			teaCmd = func() tea.Msg { return promptCmd() }
+		}
+
 		if m.state == showOverwritePrompt {
 			switch msg.String() {
 			case "left", "right":
-				cmds = append(cmds, promptCmd)
+				cmds = append(cmds, teaCmd)
 			}
 			switch {
 			case key.Matches(msg, m.keys.OverwritePromptYes, m.keys.OverwritePromptNo, m.keys.OverwritePromptConfirm):
@@ -263,32 +281,41 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		transferProgressModel, transferProgressCmd := m.transferProgress.Update(msg)
-		m.transferProgress = transferProgressModel.(transferprogress.Model)
+		m.transferProgress = transferProgressModel
 
 		fileTableModel, fileTableCmd := m.fileTable.Update(msg)
-		m.fileTable = fileTableModel.(filetable.Model)
+		m.fileTable = fileTableModel
 
 		m.overwritePrompt.MaxWidth = msg.Width - 2*tui.MARGIN - 4
 		_, promptCmd := m.overwritePrompt.Update(msg)
+		var teaCmd tea.Cmd
+		if promptCmd != nil {
+			teaCmd = func() tea.Msg { return promptCmd() }
+		}
 
-		return m, tea.Batch(transferProgressCmd, fileTableCmd, promptCmd)
+		return m, tea.Batch(transferProgressCmd, fileTableCmd, teaCmd)
 
 	default:
 		var spinnerCmd tea.Cmd
 		m.spinner, spinnerCmd = m.spinner.Update(msg)
 		_, promptCmd := m.overwritePrompt.Update(msg)
-		return m, tea.Batch(spinnerCmd, promptCmd)
+		var teaCmd tea.Cmd
+		if promptCmd != nil {
+			teaCmd = func() tea.Msg { return promptCmd() }
+		}
+		return m, tea.Batch(spinnerCmd, teaCmd)
 	}
 }
 
-func (m model) View() string {
+func (m model) View() tea.View {
+	var view string
 
 	switch m.state {
 
 	case showEstablishing:
-		return tui.PadText + tui.LogSeparator(m.width) +
+		view = tui.PadText + tui.LogSeparator(m.width) +
 			tui.PadText + tui.InfoStyle(fmt.Sprintf("%s Establishing connection with sender", m.spinner.View())) + "\n\n" +
-			tui.PadText + m.help.View(m.keys) + "\n\n"
+			tui.PadText + m.help.View(m.keys)
 
 	case showReceivingProgress:
 		var transferType string
@@ -300,26 +327,26 @@ func (m model) View() string {
 
 		payloadSize := tui.BoldText(tui.ByteCountSI(m.payloadSize))
 		receivingText := fmt.Sprintf("%s Receiving objects (%s) using %s transfer", m.spinner.View(), payloadSize, transferType)
-		return tui.PadText + tui.LogSeparator(m.width) +
+		view = tui.PadText + tui.LogSeparator(m.width) +
 			tui.PadText + tui.InfoStyle(receivingText) + "\n\n" +
 			tui.PadText + m.transferProgress.View() + "\n\n" +
-			tui.PadText + m.help.View(m.keys) + "\n\n"
+			tui.PadText + m.help.View(m.keys)
 
 	case showOverwritePrompt:
 		waitingText := fmt.Sprintf("%s Waiting for file overwrite confirmation", m.spinner.View())
-		return tui.PadText + tui.LogSeparator(m.width) +
+		view = tui.PadText + tui.LogSeparator(m.width) +
 			tui.PadText + tui.InfoStyle(waitingText) + "\n\n" +
 			tui.PadText + m.transferProgress.View() + "\n\n" +
 			tui.PadText + m.overwritePrompt.View() + "\n\n" +
-			tui.PadText + m.help.View(m.keys) + "\n\n"
+			tui.PadText + m.help.View(m.keys)
 
 	case showDecompressing:
 		payloadSize := tui.BoldText(tui.ByteCountSI(m.payloadSize))
 		decompressingText := fmt.Sprintf("%s Decompressing payload (%s compressed) and writing to disk", m.spinner.View(), payloadSize)
-		return tui.PadText + tui.LogSeparator(m.width) +
+		view = tui.PadText + tui.LogSeparator(m.width) +
 			tui.PadText + tui.InfoStyle(decompressingText) + "\n\n" +
 			tui.PadText + m.transferProgress.View() + "\n\n" +
-			tui.PadText + m.help.View(m.keys) + "\n\n"
+			tui.PadText + m.help.View(m.keys)
 
 	case showFinished:
 		oneOrMoreFiles := "object"
@@ -327,14 +354,16 @@ func (m model) View() string {
 			oneOrMoreFiles += "s"
 		}
 		finishedText := fmt.Sprintf("Received %d %s (%s decompressed)", len(m.receivedFiles), oneOrMoreFiles, tui.ByteCountSI(m.decompressedPayloadSize))
-		return tui.PadText + tui.LogSeparator(m.width) +
+		view = tui.PadText + tui.LogSeparator(m.width) +
 			tui.PadText + tui.InfoStyle(finishedText) + "\n\n" +
 			tui.PadText + m.transferProgress.View() + "\n\n" +
 			m.fileTable.View()
 
 	default:
-		return ""
+		view = ""
 	}
+
+	return tea.NewView(strings.TrimRight(view, "\n"))
 }
 
 // ------------------------------------------------------ Commands -----------------------------------------------------
@@ -445,7 +474,11 @@ func (m *model) newOverwritePrompt(fileName string) tea.Cmd {
 	m.overwritePrompt.ResultTemplate = confirmation.ResultTemplateYN
 	m.overwritePrompt.KeyMap.Abort = []string{}
 	m.overwritePrompt.KeyMap.Toggle = []string{}
-	return m.overwritePrompt.Init()
+	cmd := m.overwritePrompt.Init()
+	if cmd == nil {
+		return nil
+	}
+	return func() tea.Msg { return cmd() }
 }
 
 func (m *model) resetSpinner() {

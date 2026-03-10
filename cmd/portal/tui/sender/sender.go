@@ -18,12 +18,12 @@ import (
 	"github.com/SpatiumPortae/portal/internal/sender"
 	"github.com/SpatiumPortae/portal/protocol/transfer"
 	"github.com/atotto/clipboard"
-	"github.com/charmbracelet/bubbles/help"
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/timer"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/spinner"
+	"charm.land/bubbles/v2/timer"
+	tea "charm.land/bubbletea/v2"
+	lipgloss "charm.land/lipgloss/v2"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"golang.org/x/exp/slices"
@@ -105,7 +105,7 @@ func New(filenames []string, addr string, opts ...Option) *tea.Program {
 		msgs:             make(chan interface{}, 10),
 		help:             help.New(),
 		keys:             tui.Keys,
-		copyMessageTimer: timer.NewWithInterval(tui.TEMP_UI_MESSAGE_DURATION, 100*time.Millisecond),
+		copyMessageTimer: timer.New(tui.TEMP_UI_MESSAGE_DURATION, timer.WithInterval(100*time.Millisecond)),
 		ctx:              context.Background(),
 	}
 	m.keys.FileListUp.SetEnabled(true)
@@ -230,7 +230,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, m.spinner.Tick)
 		}
 		transferProgressModel, transferProgressCmd := m.transferProgress.Update(msg)
-		m.transferProgress = transferProgressModel.(transferprogress.Model)
+		m.transferProgress = transferProgressModel
 		cmds = append(cmds, transferProgressCmd)
 		return m, tea.Batch(cmds...)
 
@@ -241,13 +241,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			tui.ByteCountSI(m.transferProgress.TransferSpeedEstimateBps),
 		)
 
-		m.fileTable = m.fileTable.Finalize().(filetable.Model)
+		m.fileTable = m.fileTable.Finalize()
 		return m, tui.TaskCmd(message, tui.QuitCmd())
 
 	case tui.ErrorMsg:
 		return m, tui.ErrorCmd(errors.New(msg.Error()))
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.keys.Quit):
 			return m, tea.Quit
@@ -263,16 +263,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		fileTableModel, fileTableCmd := m.fileTable.Update(msg)
-		m.fileTable = fileTableModel.(filetable.Model)
+		m.fileTable = fileTableModel
 
 		return m, fileTableCmd
 
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		transferProgressModel, transferProgressCmd := m.transferProgress.Update(msg)
-		m.transferProgress = transferProgressModel.(transferprogress.Model)
+		m.transferProgress = transferProgressModel
 		fileTableModel, fileTableCmd := m.fileTable.Update(msg)
-		m.fileTable = fileTableModel.(filetable.Model)
+		m.fileTable = fileTableModel
 		return m, tea.Batch(transferProgressCmd, fileTableCmd)
 
 	default:
@@ -284,7 +284,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // -------------------------------------------------------- View -------------------------------------------------------
 
-func (m model) View() string {
+func (m model) View() tea.View {
 	// Setup strings to use in view.
 	uncompressed := tui.BoldText(tui.ByteCountSI(m.uncompressedSize))
 	readiness := fmt.Sprintf("%s Compressing objects (%s), preparing to send", m.spinner.View(), uncompressed)
@@ -318,29 +318,32 @@ func (m model) View() string {
 
 	switch m.state {
 	case showPassword:
-		return tui.PadText + tui.LogSeparator(m.width) +
+		view := tui.PadText + tui.LogSeparator(m.width) +
 			tui.PadText + tui.InfoStyle(statusText) + "\n\n" +
 			tui.PadText + tui.InfoStyle("On the receiving end, run:") + "\n" +
 			tui.PadText + tui.InfoStyle(m.copyReceiverCommand()) + "\n\n" +
-			m.fileTable.View() +
-			tui.PadText + m.help.View(m.keys) + "\n\n"
+			m.fileTable.View() + "\n\n" +
+			tui.PadText + m.help.View(m.keys)
+		return tea.NewView(strings.TrimRight(view, "\n"))
 
 	case showSendingProgress:
-		return tui.PadText + tui.LogSeparator(m.width) +
+		view := tui.PadText + tui.LogSeparator(m.width) +
 			tui.PadText + tui.InfoStyle(statusText) + "\n\n" +
 			tui.PadText + m.transferProgress.View() + "\n\n" +
-			m.fileTable.View() +
-			tui.PadText + m.help.View(m.keys) + "\n\n"
+			m.fileTable.View() + "\n\n" +
+			tui.PadText + m.help.View(m.keys)
+		return tea.NewView(strings.TrimRight(view, "\n"))
 
 	case showFinished:
 		finishedText := fmt.Sprintf("Sent %d object(s) (%s compressed)", len(m.fileNames), tui.ByteCountSI(m.payloadSize))
-		return tui.PadText + tui.LogSeparator(m.width) +
+		view := tui.PadText + tui.LogSeparator(m.width) +
 			tui.PadText + tui.InfoStyle(finishedText) + "\n\n" +
 			tui.PadText + m.transferProgress.View() + "\n\n" +
 			m.fileTable.View()
+		return tea.NewView(strings.TrimRight(view, "\n"))
 
 	default:
-		return ""
+		return tea.NewView("")
 	}
 }
 
