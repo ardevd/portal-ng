@@ -22,10 +22,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
-	tea1 "github.com/charmbracelet/bubbletea"
 	lipgloss "charm.land/lipgloss/v2"
-	"github.com/erikgeiser/promptkit"
-	"github.com/erikgeiser/promptkit/confirmation"
 	"github.com/spf13/viper"
 )
 
@@ -94,9 +91,10 @@ type model struct {
 	width            int
 	spinner          spinner.Model
 	transferProgress transferprogress.Model
-	fileTable        filetable.Model
-	overwritePrompt  confirmation.Model
-	help             help.Model
+	fileTable               filetable.Model
+	overwritePromptActive   bool
+	overwritePromptSelected bool
+	help                    help.Model
 	keys             tui.KeyMap
 }
 
@@ -108,7 +106,6 @@ func New(addr string, password string, opts ...Option) *tea.Program {
 		password:         password,
 		rendezvousAddr:   addr,
 		fileTable:        filetable.New(),
-		overwritePrompt:  *confirmation.NewModel(confirmation.New("", confirmation.Undecided)),
 		help:             help.New(),
 		keys:             tui.Keys,
 		ctx:              context.Background(),
@@ -218,7 +215,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.keys.OverwritePromptYes.SetEnabled(true)
 		m.keys.OverwritePromptNo.SetEnabled(true)
 		m.keys.OverwritePromptConfirm.SetEnabled(true)
-		return m, tea.Batch(m.spinner.Tick, m.newOverwritePrompt(msg.commiter.FileName()))
+		m.overwritePromptActive = true
+		m.overwritePromptSelected = true
+		return m, tea.Batch(m.spinner.Tick)
 
 	case unpackDoneMsg:
 		m.unpacker.Close()
@@ -240,36 +239,26 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.fileTable = fileTableModel
 		cmds = append(cmds, fileTableCmd)
 
-		var promptMsg tea.Msg = msg
-		if msg.String() == "left" {
-			promptMsg = tea1.KeyMsg{Type: tea1.KeyLeft}
-		} else if msg.String() == "right" {
-			promptMsg = tea1.KeyMsg{Type: tea1.KeyRight}
-		} else if msg.String() == "y" || msg.String() == "Y" {
-			promptMsg = tea1.KeyMsg{Type: tea1.KeyRunes, Runes: []rune("y")}
-		} else if msg.String() == "n" || msg.String() == "N" {
-			promptMsg = tea1.KeyMsg{Type: tea1.KeyRunes, Runes: []rune("n")}
-		}
-
-		_, promptCmd := m.overwritePrompt.Update(promptMsg)
-		var teaCmd tea.Cmd
-		if promptCmd != nil {
-			teaCmd = func() tea.Msg { return promptCmd() }
-		}
-
 		if m.state == showOverwritePrompt {
 			switch msg.String() {
 			case "left", "right":
-				cmds = append(cmds, teaCmd)
+				m.overwritePromptSelected = !m.overwritePromptSelected
 			}
 			switch {
 			case key.Matches(msg, m.keys.OverwritePromptYes, m.keys.OverwritePromptNo, m.keys.OverwritePromptConfirm):
+				if key.Matches(msg, m.keys.OverwritePromptYes) || msg.String() == "y" || msg.String() == "Y" {
+					m.overwritePromptSelected = true
+				} else if key.Matches(msg, m.keys.OverwritePromptNo) || msg.String() == "n" || msg.String() == "N" {
+					m.overwritePromptSelected = false
+				}
+				
 				m.state = showDecompressing
 				m.keys.OverwritePromptYes.SetEnabled(false)
 				m.keys.OverwritePromptNo.SetEnabled(false)
 				m.keys.OverwritePromptConfirm.SetEnabled(false)
-				shouldOverwrite, _ := m.overwritePrompt.Value()
-				if shouldOverwrite {
+				m.overwritePromptActive = false
+				
+				if m.overwritePromptSelected {
 					cmds = append(cmds, m.commitCmd())
 				} else {
 					cmds = append(cmds, m.unpackCmd())
@@ -286,24 +275,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		fileTableModel, fileTableCmd := m.fileTable.Update(msg)
 		m.fileTable = fileTableModel
 
-		m.overwritePrompt.MaxWidth = msg.Width - 2*tui.MARGIN - 4
-		_, promptCmd := m.overwritePrompt.Update(msg)
-		var teaCmd tea.Cmd
-		if promptCmd != nil {
-			teaCmd = func() tea.Msg { return promptCmd() }
-		}
-
-		return m, tea.Batch(transferProgressCmd, fileTableCmd, teaCmd)
+		return m, tea.Batch(transferProgressCmd, fileTableCmd)
 
 	default:
 		var spinnerCmd tea.Cmd
 		m.spinner, spinnerCmd = m.spinner.Update(msg)
-		_, promptCmd := m.overwritePrompt.Update(msg)
-		var teaCmd tea.Cmd
-		if promptCmd != nil {
-			teaCmd = func() tea.Msg { return promptCmd() }
-		}
-		return m, tea.Batch(spinnerCmd, teaCmd)
+		return m, spinnerCmd
 	}
 }
 
@@ -334,10 +311,22 @@ func (m model) View() tea.View {
 
 	case showOverwritePrompt:
 		waitingText := fmt.Sprintf("%s Waiting for file overwrite confirmation", m.spinner.View())
+
+		promptText := fmt.Sprintf("Overwrite file '%s'? ", m.commiter.FileName())
+		var yesStyle, noStyle lipgloss.Style
+		if m.overwritePromptSelected {
+			yesStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(tui.ELEMENT_COLOR)).Underline(true)
+			noStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(tui.PRIMARY_COLOR))
+		} else {
+			yesStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(tui.PRIMARY_COLOR))
+			noStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(tui.ELEMENT_COLOR)).Underline(true)
+		}
+		promptView := promptText + yesStyle.Render("Yes") + " / " + noStyle.Render("No")
+
 		view = tui.PadText + tui.LogSeparator(m.width) +
 			tui.PadText + tui.InfoStyle(waitingText) + "\n\n" +
 			tui.PadText + m.transferProgress.View() + "\n\n" +
-			tui.PadText + m.overwritePrompt.View() + "\n\n" +
+			tui.PadText + promptView + "\n\n" +
 			tui.PadText + m.help.View(m.keys)
 
 	case showDecompressing:
@@ -464,22 +453,6 @@ func (m *model) commitCmd() tea.Cmd {
 }
 
 // ------------------------------------------------------ Helpers ------------------------------------------------------
-
-func (m *model) newOverwritePrompt(fileName string) tea.Cmd {
-	prompt := confirmation.New(fmt.Sprintf("Overwrite file '%s'?", fileName), confirmation.Yes)
-	m.overwritePrompt = *confirmation.NewModel(prompt)
-	m.overwritePrompt.MaxWidth = m.width
-	m.overwritePrompt.WrapMode = promptkit.HardWrap
-	m.overwritePrompt.Template = confirmation.TemplateYN
-	m.overwritePrompt.ResultTemplate = confirmation.ResultTemplateYN
-	m.overwritePrompt.KeyMap.Abort = []string{}
-	m.overwritePrompt.KeyMap.Toggle = []string{}
-	cmd := m.overwritePrompt.Init()
-	if cmd == nil {
-		return nil
-	}
-	return func() tea.Msg { return cmd() }
-}
 
 func (m *model) resetSpinner() {
 	m.spinner = spinner.New()
