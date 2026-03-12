@@ -3,16 +3,17 @@ package filetable
 import (
 	"math"
 
-	"github.com/ardevd/portal-ng/cmd/portal/tui"
-	"github.com/ardevd/portal-ng/internal/file"
 	"charm.land/bubbles/v2/table"
 	tea "charm.land/bubbletea/v2"
 	lipgloss "charm.land/lipgloss/v2"
+	"github.com/ardevd/portal-ng/cmd/portal/tui"
+	"github.com/ardevd/portal-ng/internal/file"
 	"github.com/mattn/go-runewidth"
 )
 
 const (
 	defaultMaxTableHeight         = 4
+	defaultMaxTableWidth          = 40
 	nameColumnWidthFactor float64 = 0.8
 	sizeColumnWidthFactor float64 = 1 - nameColumnWidthFactor
 )
@@ -43,6 +44,7 @@ func New(opts ...Option) Model {
 		table: table.New(
 			table.WithFocused(true),
 			table.WithHeight(defaultMaxTableHeight),
+			table.WithWidth(defaultMaxTableWidth),
 		),
 	}
 
@@ -156,14 +158,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		return m, nil
 
 	}
-
 	m.table, cmd = m.table.Update(msg)
 	return m, cmd
 }
 
-func (m Model) View() string {
+func (m Model) View() tea.View {
 	if len(m.rows) == 0 {
-		return ""
+		return tea.NewView("")
 	}
-	return fileTableStyle.Render(m.table.View())
+	return tea.NewView(fileTableStyle.Render(m.table.View()))
 }

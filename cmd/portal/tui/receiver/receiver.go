@@ -10,6 +10,11 @@ import (
 	"strings"
 	"time"
 
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
+	lipgloss "charm.land/lipgloss/v2"
 	"github.com/ardevd/portal-ng/cmd/portal/tui"
 	"github.com/ardevd/portal-ng/cmd/portal/tui/filetable"
 	"github.com/ardevd/portal-ng/cmd/portal/tui/transferprogress"
@@ -18,11 +23,6 @@ import (
 	"github.com/ardevd/portal-ng/internal/receiver"
 	"github.com/ardevd/portal-ng/internal/semver"
 	"github.com/ardevd/portal-ng/protocol/transfer"
-	"charm.land/bubbles/v2/help"
-	"charm.land/bubbles/v2/key"
-	"charm.land/bubbles/v2/spinner"
-	tea "charm.land/bubbletea/v2"
-	lipgloss "charm.land/lipgloss/v2"
 	"github.com/spf13/viper"
 )
 
@@ -88,14 +88,14 @@ type model struct {
 	unpacker *file.Unpacker
 	commiter file.Committer
 
-	width            int
-	spinner          spinner.Model
-	transferProgress transferprogress.Model
+	width                   int
+	spinner                 spinner.Model
+	transferProgress        transferprogress.Model
 	fileTable               filetable.Model
 	overwritePromptActive   bool
 	overwritePromptSelected bool
 	help                    help.Model
-	keys             tui.KeyMap
+	keys                    tui.KeyMap
 }
 
 // New creates a new receiver program.
@@ -251,13 +251,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				} else if key.Matches(msg, m.keys.OverwritePromptNo) || msg.String() == "n" || msg.String() == "N" {
 					m.overwritePromptSelected = false
 				}
-				
+
 				m.state = showDecompressing
 				m.keys.OverwritePromptYes.SetEnabled(false)
 				m.keys.OverwritePromptNo.SetEnabled(false)
 				m.keys.OverwritePromptConfirm.SetEnabled(false)
 				m.overwritePromptActive = false
-				
+
 				if m.overwritePromptSelected {
 					cmds = append(cmds, m.commitCmd())
 				} else {
@@ -345,8 +345,7 @@ func (m model) View() tea.View {
 		finishedText := fmt.Sprintf("Received %d %s (%s decompressed)", len(m.receivedFiles), oneOrMoreFiles, tui.ByteCountSI(m.decompressedPayloadSize))
 		view = tui.PadText + tui.LogSeparator(m.width) +
 			tui.PadText + tui.InfoStyle(finishedText) + "\n\n" +
-			tui.PadText + m.transferProgress.View() + "\n\n" +
-			m.fileTable.View()
+			tui.PadText + m.transferProgress.View() + "\n\n" + m.fileTable.View().Content
 
 	default:
 		view = ""
