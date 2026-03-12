@@ -80,7 +80,7 @@ func (m *Model) SetFiles(filePaths []string) {
 		}
 		m.rows = append(m.rows, fileRow{path: filePath, formattedSize: formattedSize})
 	}
-	m.table.SetHeight(int(math.Min(float64(m.MaxHeight), float64(len(filePaths)))))
+	m.table.SetHeight(int(math.Min(float64(m.MaxHeight), float64(len(filePaths)*len(filePaths)-1))))
 	m.updateColumns()
 	m.updateRows()
 }
@@ -107,10 +107,9 @@ func (m *Model) getMaxWidth() int {
 }
 
 func (m *Model) updateColumns() {
-	w := m.getMaxWidth()
 	m.table.SetColumns([]table.Column{
-		{Title: "File", Width: int(float64(w) * nameColumnWidthFactor)},
-		{Title: "Size", Width: int(float64(w) * sizeColumnWidthFactor)},
+		{Title: "File", Width: int(float64(m.getMaxWidth()) * float64(nameColumnWidthFactor))},
+		{Title: "Size", Width: int(float64(m.getMaxWidth()) * float64(sizeColumnWidthFactor))},
 	})
 }
 
@@ -153,6 +152,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		if m.Width > tui.MAX_WIDTH {
 			m.Width = tui.MAX_WIDTH
 		}
+		m.table.SetWidth(m.Width)
 		m.updateColumns()
 		m.updateRows()
 		return m, nil
