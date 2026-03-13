@@ -12,7 +12,8 @@ import (
 )
 
 const (
-	defaultMaxTableHeight         = 2
+	defaultMaxTableHeight         = 8
+	defaultTableHeight            = 2
 	defaultMaxTableWidth          = 40
 	nameColumnWidthFactor float64 = 0.8
 	sizeColumnWidthFactor float64 = 1 - nameColumnWidthFactor
@@ -43,7 +44,7 @@ func New(opts ...Option) Model {
 		MaxHeight: defaultMaxTableHeight,
 		table: table.New(
 			table.WithFocused(true),
-			table.WithHeight(defaultMaxTableHeight),
+			table.WithHeight(defaultTableHeight),
 			table.WithWidth(defaultMaxTableWidth),
 		),
 	}
@@ -80,8 +81,8 @@ func (m *Model) SetFiles(filePaths []string) {
 		}
 		m.rows = append(m.rows, fileRow{path: filePath, formattedSize: formattedSize})
 	}
-	filepathHeightMultiplier := math.Max(1, float64(len(filePaths)))
-	m.table.SetHeight(int(math.Min(float64(m.MaxHeight), float64(len(filePaths)*int(filepathHeightMultiplier)))) + 1)
+	// filepathHeightMultiplier := math.Max(1, float64(len(filePaths)))
+	m.table.SetHeight(int(math.Min(float64(m.MaxHeight), float64(len(filePaths)+1))))
 	m.updateColumns()
 	m.updateRows()
 }
