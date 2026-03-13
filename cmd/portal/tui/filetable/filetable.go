@@ -3,16 +3,17 @@ package filetable
 import (
 	"math"
 
-	"github.com/ardevd/portal-ng/cmd/portal/tui"
-	"github.com/ardevd/portal-ng/internal/file"
 	"charm.land/bubbles/v2/table"
 	tea "charm.land/bubbletea/v2"
 	lipgloss "charm.land/lipgloss/v2"
+	"github.com/ardevd/portal-ng/cmd/portal/tui"
+	"github.com/ardevd/portal-ng/internal/file"
 	"github.com/mattn/go-runewidth"
 )
 
 const (
-	defaultMaxTableHeight         = 4
+	defaultMaxTableHeight         = 2
+	defaultMaxTableWidth          = 40
 	nameColumnWidthFactor float64 = 0.8
 	sizeColumnWidthFactor float64 = 1 - nameColumnWidthFactor
 )
@@ -43,6 +44,7 @@ func New(opts ...Option) Model {
 		table: table.New(
 			table.WithFocused(true),
 			table.WithHeight(defaultMaxTableHeight),
+			table.WithWidth(defaultMaxTableWidth),
 		),
 	}
 
@@ -78,7 +80,8 @@ func (m *Model) SetFiles(filePaths []string) {
 		}
 		m.rows = append(m.rows, fileRow{path: filePath, formattedSize: formattedSize})
 	}
-	m.table.SetHeight(int(math.Min(float64(m.MaxHeight), float64(len(filePaths)))))
+	filepathHeightMultiplier := math.Max(1, float64(len(filePaths)))
+	m.table.SetHeight(int(math.Min(float64(m.MaxHeight), float64(len(filePaths)*int(filepathHeightMultiplier)))) + 1)
 	m.updateColumns()
 	m.updateRows()
 }
@@ -105,10 +108,9 @@ func (m *Model) getMaxWidth() int {
 }
 
 func (m *Model) updateColumns() {
-	w := m.getMaxWidth()
 	m.table.SetColumns([]table.Column{
-		{Title: "File", Width: int(float64(w) * nameColumnWidthFactor)},
-		{Title: "Size", Width: int(float64(w) * sizeColumnWidthFactor)},
+		{Title: "File", Width: int(float64(m.getMaxWidth()) * float64(nameColumnWidthFactor))},
+		{Title: "Size", Width: int(float64(m.getMaxWidth()) * float64(sizeColumnWidthFactor))},
 	})
 }
 
@@ -151,19 +153,19 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		if m.Width > tui.MAX_WIDTH {
 			m.Width = tui.MAX_WIDTH
 		}
+		m.table.SetWidth(m.Width)
 		m.updateColumns()
 		m.updateRows()
 		return m, nil
 
 	}
-
 	m.table, cmd = m.table.Update(msg)
 	return m, cmd
 }
 
-func (m Model) View() string {
+func (m Model) View() tea.View {
 	if len(m.rows) == 0 {
-		return ""
+		return tea.NewView("")
 	}
-	return fileTableStyle.Render(m.table.View())
+	return tea.NewView(fileTableStyle.Render(m.table.View()))
 }

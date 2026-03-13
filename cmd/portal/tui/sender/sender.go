@@ -8,6 +8,12 @@ import (
 	"strings"
 	"time"
 
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/spinner"
+	"charm.land/bubbles/v2/timer"
+	tea "charm.land/bubbletea/v2"
+	lipgloss "charm.land/lipgloss/v2"
 	"github.com/ardevd/portal-ng/cmd/portal/config"
 	"github.com/ardevd/portal-ng/cmd/portal/tui"
 	"github.com/ardevd/portal-ng/cmd/portal/tui/filetable"
@@ -18,12 +24,6 @@ import (
 	"github.com/ardevd/portal-ng/internal/sender"
 	"github.com/ardevd/portal-ng/protocol/transfer"
 	"github.com/atotto/clipboard"
-	"charm.land/bubbles/v2/help"
-	"charm.land/bubbles/v2/key"
-	"charm.land/bubbles/v2/spinner"
-	"charm.land/bubbles/v2/timer"
-	tea "charm.land/bubbletea/v2"
-	lipgloss "charm.land/lipgloss/v2"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"golang.org/x/exp/slices"
@@ -113,6 +113,7 @@ func New(filenames []string, addr string, opts ...Option) *tea.Program {
 	for _, opt := range opts {
 		opt(&m)
 	}
+
 	m.resetSpinner()
 	return tea.NewProgram(m)
 }
@@ -322,7 +323,7 @@ func (m model) View() tea.View {
 			tui.PadText + tui.InfoStyle(statusText) + "\n\n" +
 			tui.PadText + tui.InfoStyle("On the receiving end, run:") + "\n" +
 			tui.PadText + tui.InfoStyle(m.copyReceiverCommand()) + "\n\n" +
-			m.fileTable.View() + "\n\n" +
+			m.fileTable.View().Content + "\n\n" +
 			tui.PadText + m.help.View(m.keys)
 		return tea.NewView(strings.TrimRight(view, "\n"))
 
@@ -330,7 +331,7 @@ func (m model) View() tea.View {
 		view := tui.PadText + tui.LogSeparator(m.width) +
 			tui.PadText + tui.InfoStyle(statusText) + "\n\n" +
 			tui.PadText + m.transferProgress.View() + "\n\n" +
-			m.fileTable.View() + "\n\n" +
+			m.fileTable.View().Content + "\n\n" +
 			tui.PadText + m.help.View(m.keys)
 		return tea.NewView(strings.TrimRight(view, "\n"))
 
@@ -339,7 +340,7 @@ func (m model) View() tea.View {
 		view := tui.PadText + tui.LogSeparator(m.width) +
 			tui.PadText + tui.InfoStyle(finishedText) + "\n\n" +
 			tui.PadText + m.transferProgress.View() + "\n\n" +
-			m.fileTable.View()
+			m.fileTable.View().Content
 		return tea.NewView(strings.TrimRight(view, "\n"))
 
 	default:
