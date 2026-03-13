@@ -80,7 +80,7 @@ func (m *Model) SetFiles(filePaths []string) {
 		}
 		m.rows = append(m.rows, fileRow{path: filePath, formattedSize: formattedSize})
 	}
-	m.table.SetHeight(int(math.Min(float64(m.MaxHeight), float64(len(filePaths)*len(filePaths)-1))))
+	m.table.SetHeight(int(math.Min(float64(m.MaxHeight), float64(len(filePaths)*int(math.Max(1, float64(len(filePaths))))-1))))
 	m.updateColumns()
 	m.updateRows()
 }
