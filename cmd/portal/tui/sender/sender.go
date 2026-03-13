@@ -457,7 +457,7 @@ func (m *model) resetSpinner() {
 
 func (m *model) copyReceiverCommand() string {
 	var btuilder strings.Builder
-	btuilder.WriteString("portal receive ")
+	btuilder.WriteString("portal-ng receive ")
 	btuilder.WriteString(m.password)
 
 	relayAddrKey := "relay"
